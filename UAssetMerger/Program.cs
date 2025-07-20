@@ -412,8 +412,21 @@ public class UAssetMerger
                     var orgExport = originalAsset[modExport.ObjectName.Value.Value];
                     if (orgExport == null)
                     {
-                        modifiedAsset.Exports.Add(modExport);
+                        originalAsset.Exports.Add((Export)modExport.Clone());
+                        orgExport = originalAsset[modExport.ObjectName.Value.Value];
                         Console.WriteLine($"Export {modExport.ObjectName.Value.Value} added.");
+                        if (modExport is DataTableExport dtModExport && orgExport is DataTableExport dtOrgExport)
+                        {
+                            HandlePropertyData(originalAsset, dtOrgExport.Table.Data, modifiedAsset, dtModExport.Table.Data);
+                        }
+                        else if (modExport is NormalExport nModExport && orgExport is NormalExport nOrgExport)
+                        {
+                            HandlePropertyData(originalAsset, nOrgExport.Data, modifiedAsset, nModExport.Data);
+                        } 
+                        else if (modExport is RawExport)
+                        {
+                            Console.WriteLine($"Export {modExport.ObjectName.Value.Value} is raw and thus cannot be correctly automatically merged.");
+                        }
                     }
                     else
                     {
@@ -424,6 +437,10 @@ public class UAssetMerger
                         else if (modExport is NormalExport nModExport && orgExport is NormalExport nOrgExport)
                         {
                             HandlePropertyData(originalAsset, nOrgExport.Data, modifiedAsset, nModExport.Data);
+                        }
+                        else if (modExport is RawExport)
+                        {
+                            Console.WriteLine($"Export {modExport.ObjectName.Value.Value} is raw and thus cannot be correctly automatically merged.");
                         }
                     }
                 });
