@@ -395,6 +395,7 @@ public class UAssetMerger
                 replaceList = [.. replaceList, .. File.ReadAllLines(modReplaceListPath)];
                 Console.WriteLine($"Loaded mod {modRoot} replace list.");
             }
+            string[] replacedFiles = [];
             foreach (string sourceFile in Directory.GetFiles(modRoot, "*", SearchOption.AllDirectories))
             {
                 string relativePath = Path.GetRelativePath(modRoot, sourceFile);
@@ -418,10 +419,12 @@ public class UAssetMerger
                 }
                 if (File.Exists(targetFile) && (replaceList.Contains(relativePath) || relativePath.Contains(".toReplace") || replaceList.Contains("replaceEverything")))
                 {
+                    replacedFiles = [.. replacedFiles, sourceFile];
                     File.Copy(sourceFile, targetFile, overwrite: true);
                 }
                 else if (!File.Exists(targetFile))
                 {
+                    replacedFiles = [.. replacedFiles, sourceFile];
                     File.Copy(sourceFile, targetFile);
                     if (!replaceList.Contains(relativePath))
                         File.AppendAllLines(replaceListPath, [relativePath]);
@@ -430,6 +433,11 @@ public class UAssetMerger
 
             foreach (string sourceFile in Directory.GetFiles(modRoot, "*.uasset", SearchOption.AllDirectories))
             {
+                if (replacedFiles.Contains(sourceFile))
+                {
+                    Console.WriteLine($"Skipping {sourceFile} as it was already replaced.");
+                    continue;
+                }
                 string relativePath = Path.GetRelativePath(modRoot, sourceFile);
 
                 string originalFile = Path.Combine(targetRoot, relativePath).Replace(".uasset", "");
