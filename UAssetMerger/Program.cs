@@ -12,12 +12,13 @@ namespace UAssetMerger;
 public class UAssetMerger
 {
 
-    static PropertyData GetTrueImport(UAsset orgAsset, UAsset modAsset, PropertyData prop)
+    static PropertyData GetTrueProp(UAsset orgAsset, UAsset modAsset, PropertyData prop)
     {
         if (prop is ObjectPropertyData)
         {
             if (int.TryParse(prop.RawValue.ToString(), out int intValue))
-                if (intValue != 0)
+            {
+                if (intValue < 0)
                 {
                     int index = GetImportIndex(orgAsset, modAsset.Imports[-intValue - 1]);
                     return new ObjectPropertyData(new FName(orgAsset, prop.Name.Value.Value))
@@ -25,8 +26,25 @@ public class UAssetMerger
                         RawValue = FPackageIndex.FromRawIndex(-index - 1)
                     };
                 }
+                else if (intValue > 0)
+                {
+                    int index = GetExportIndex(orgAsset, modAsset.Exports[intValue - 1]);
+                    return new ObjectPropertyData(new FName(orgAsset, prop.Name.Value.Value))
+                    {
+                        RawValue = FPackageIndex.FromRawIndex(index + 1)
+                    };
+                }
+            }
         }
         return prop;
+    }
+
+    static int GetExportIndex(UAsset asset, Export export)
+    {
+        return asset.Exports.FindIndex(e =>
+            e.ObjectName.Value == export.ObjectName.Value &&
+            e.ObjectName.Number == export.ObjectName.Number
+        );
     }
 
     static int GetImportIndex(UAsset asset, Import import)
@@ -47,6 +65,11 @@ public class UAssetMerger
     static string GetImportString(int index, UAsset asset)
     {
         return asset.Imports[-index - 1].ObjectName.Value.Value + asset.Imports[-index - 1].ObjectName.Number.ToString() + asset.Imports[-index - 1].ClassName.Value.Value + asset.Imports[-index - 1].ClassPackage.Value.Value;
+    }
+
+    static string GetExportString(int index, UAsset asset)
+    {
+        return asset.Exports[index - 1].ObjectName.Value.Value + asset.Exports[index - 1].ObjectName.Number.ToString();
     }
 
     static string GetPropertyHash(PropertyData prop, UAsset asset)
@@ -105,7 +128,7 @@ public class UAssetMerger
                         orgEnum.Value = new FName(orgAsset, modEnum.Value.Value);
                     else if (orgRow is ObjectPropertyData orgObj && modRow is ObjectPropertyData modObj)
                     {
-                        orgObj = (ObjectPropertyData)GetTrueImport(orgAsset, modAsset, modObj);
+                        orgObj = (ObjectPropertyData)GetTrueProp(orgAsset, modAsset, modObj);
                     }
                     else if (orgRow is MapPropertyData orgMap && modRow is MapPropertyData modMap)
                     {
@@ -117,11 +140,18 @@ public class UAssetMerger
                             {
                                 isObjProp = true;
                                 if (int.TryParse(orgItem.Key.RawValue.ToString(), out int intValue))
-                                    if (intValue != 0)
+                                {
+                                    if (intValue < 0)
                                     {
                                         keyHashes.Add(GetImportString(intValue, orgAsset), orgItem.Key);
                                         keyHashes.Add(intValue.ToString(), orgItem.Key);
                                     }
+                                    else if (intValue > 0)
+                                    {
+                                        keyHashes.Add(GetExportString(intValue, orgAsset), orgItem.Key);
+                                        keyHashes.Add(intValue.ToString(), orgItem.Key);
+                                    }
+                                }
                             }
                             else
                                 keyHashes.Add(GetPropertyHash(orgItem.Key, orgAsset), orgItem.Key);
@@ -131,11 +161,12 @@ public class UAssetMerger
                             if (modItem.Key is ObjectPropertyData && isObjProp)
                             {
                                 if (int.TryParse(modItem.Key.RawValue.ToString(), out int intValue))
-                                    if (intValue != 0)
+                                {
+                                    if (intValue < 0)
                                     {
                                         if (keyHashes.TryGetValue(GetImportString(intValue, modAsset), out PropertyData? valueByString) && !replaceObj)
                                         {
-                                            orgMap.Value[valueByString] = GetTrueImport(orgAsset, modAsset, modItem.Value);
+                                            orgMap.Value[valueByString] = GetTrueProp(orgAsset, modAsset, modItem.Value);
                                         }
                                         else if (keyHashes.TryGetValue(intValue.ToString(), out PropertyData? valueByIndex) && replaceObj)
                                         {
@@ -145,7 +176,7 @@ public class UAssetMerger
                                             {
                                                 RawValue = FPackageIndex.FromRawIndex(-index - 1)
                                             };
-                                            orgMap.Value.Add(propertyData, GetTrueImport(orgAsset, modAsset, modItem.Value));
+                                            orgMap.Value.Add(propertyData, GetTrueProp(orgAsset, modAsset, modItem.Value));
                                         }
                                         else if (!replaceObj)
                                         {
@@ -154,9 +185,36 @@ public class UAssetMerger
                                             {
                                                 RawValue = FPackageIndex.FromRawIndex(-index - 1)
                                             };
-                                            orgMap.Value.Add(propertyData, GetTrueImport(orgAsset, modAsset, modItem.Value));
+                                            orgMap.Value.Add(propertyData, GetTrueProp(orgAsset, modAsset, modItem.Value));
                                         }
                                     }
+                                    else if (intValue > 0)
+                                    {
+                                        if (keyHashes.TryGetValue(GetExportString(intValue, modAsset), out PropertyData? valueByString) && !replaceObj)
+                                        {
+                                            orgMap.Value[valueByString] = GetTrueProp(orgAsset, modAsset, modItem.Value);
+                                        }
+                                        else if (keyHashes.TryGetValue(intValue.ToString(), out PropertyData? valueByIndex) && replaceObj)
+                                        {
+                                            orgMap.Value.Remove(valueByIndex);
+                                            int index = GetExportIndex(orgAsset, modAsset.Exports[intValue - 1]);
+                                            ObjectPropertyData propertyData = new(new FName(orgAsset, modItem.Key.Name.Value.Value))
+                                            {
+                                                RawValue = FPackageIndex.FromRawIndex(index + 1)
+                                            };
+                                            orgMap.Value.Add(propertyData, GetTrueProp(orgAsset, modAsset, modItem.Value));
+                                        }
+                                        else if (!replaceObj)
+                                        {
+                                            int index = GetExportIndex(orgAsset, modAsset.Exports[intValue - 1]);
+                                            ObjectPropertyData propertyData = new(new FName(orgAsset, modItem.Key.Name.Value.Value))
+                                            {
+                                                RawValue = FPackageIndex.FromRawIndex(index + 1)
+                                            };
+                                            orgMap.Value.Add(propertyData, GetTrueProp(orgAsset, modAsset, modItem.Value));
+                                        }
+                                    }
+                                }
                             }
                             else if (isObjProp)
                             {
@@ -167,11 +225,11 @@ public class UAssetMerger
                             {
                                 if (keyHashes.TryGetValue(GetPropertyHash(modItem.Key, modAsset), out PropertyData? value))
                                 {
-                                    orgMap.Value[value] = GetTrueImport(orgAsset, modAsset, modItem.Value);
+                                    orgMap.Value[value] = GetTrueProp(orgAsset, modAsset, modItem.Value);
                                 }
                                 else
                                 {
-                                    orgMap.Value.Add(modItem.Key, GetTrueImport(orgAsset, modAsset, modItem.Value));
+                                    orgMap.Value.Add(modItem.Key, GetTrueProp(orgAsset, modAsset, modItem.Value));
                                 }
                             }
                         }
@@ -184,8 +242,12 @@ public class UAssetMerger
                             foreach (var orgItem in orgArray.Value)
                             {
                                 if (int.TryParse(orgItem.RawValue.ToString(), out int intValue))
-                                    if (intValue != 0)
+                                {
+                                    if (intValue < 0)
                                         orgObjects = [.. orgObjects, GetImportString(intValue, orgAsset)];
+                                    else if (intValue > 0)
+                                        orgObjects = [.. orgObjects, GetExportString(intValue, orgAsset)];
+                                }
                             }
                             foreach (var modItem in modArray.Value)
                             {
@@ -193,14 +255,28 @@ public class UAssetMerger
                                 {
                                     if (intValue == 0)
                                         continue;
-                                    if (orgObjects.Contains(GetImportString(intValue, modAsset)))
-                                        continue;
-                                    int index = GetImportIndex(orgAsset, modAsset.Imports[-intValue - 1]);
-                                    ObjectPropertyData propertyData = new(new FName(orgAsset, modItem.Name.Value.Value))
+                                    if (intValue < 0)
                                     {
-                                        RawValue = FPackageIndex.FromRawIndex(-index - 1)
-                                    };
-                                    orgArray.Value = [.. orgArray.Value, propertyData];
+                                        if (orgObjects.Contains(GetImportString(intValue, modAsset)))
+                                            continue;
+                                        int index = GetImportIndex(orgAsset, modAsset.Imports[-intValue - 1]);
+                                        ObjectPropertyData propertyData = new(new FName(orgAsset, modItem.Name.Value.Value))
+                                        {
+                                            RawValue = FPackageIndex.FromRawIndex(-index - 1)
+                                        };
+                                        orgArray.Value = [.. orgArray.Value, propertyData];
+                                    }
+                                    else if (intValue > 0)
+                                    {
+                                        if (orgObjects.Contains(GetExportString(intValue, modAsset)))
+                                            continue;
+                                        int index = GetExportIndex(orgAsset, modAsset.Exports[intValue - 1]);
+                                        ObjectPropertyData propertyData = new(new FName(orgAsset, modItem.Name.Value.Value))
+                                        {
+                                            RawValue = FPackageIndex.FromRawIndex(index + 1)
+                                        };
+                                        orgArray.Value = [.. orgArray.Value, propertyData];
+                                    }
                                 }
                             }
                         }
@@ -313,6 +389,12 @@ public class UAssetMerger
         foreach (string modRoot in modOrder)
         {
             Console.WriteLine($"Processing mod: {modRoot}");
+            string modReplaceListPath = Path.Combine(modRoot, "scriptReplaceList.txt");
+            if (File.Exists(modReplaceListPath))
+            {
+                replaceList = [.. replaceList, .. File.ReadAllLines(modReplaceListPath)];
+                Console.WriteLine($"Loaded mod {modRoot} replace list.");
+            }
             foreach (string sourceFile in Directory.GetFiles(modRoot, "*", SearchOption.AllDirectories))
             {
                 string relativePath = Path.GetRelativePath(modRoot, sourceFile);
@@ -327,14 +409,14 @@ public class UAssetMerger
                     continue;
                 }
 
-                string targetFile = Path.Combine(targetRoot, relativePath);
+                string targetFile = Path.Combine(targetRoot, relativePath.Replace(".toReplace", ""));
 
                 string? directoryPath = Path.GetDirectoryName(targetFile);
                 if (directoryPath != null)
                 {
                     Directory.CreateDirectory(directoryPath);
                 }
-                if (File.Exists(targetFile) && replaceList.Contains(relativePath))
+                if (File.Exists(targetFile) && (replaceList.Contains(relativePath) || relativePath.Contains(".toReplace")))
                 {
                     File.Copy(sourceFile, targetFile, overwrite: true);
                 }
@@ -415,35 +497,30 @@ public class UAssetMerger
                         originalAsset.Exports.Add((Export)modExport.Clone());
                         orgExport = originalAsset[modExport.ObjectName.Value.Value];
                         Console.WriteLine($"Export {modExport.ObjectName.Value.Value} added.");
-                        if (modExport is DataTableExport dtModExport && orgExport is DataTableExport dtOrgExport)
-                        {
-                            HandlePropertyData(originalAsset, dtOrgExport.Table.Data, modifiedAsset, dtModExport.Table.Data);
-                        }
-                        else if (modExport is NormalExport nModExport && orgExport is NormalExport nOrgExport)
-                        {
-                            HandlePropertyData(originalAsset, nOrgExport.Data, modifiedAsset, nModExport.Data);
-                        } 
-                        else if (modExport is RawExport)
-                        {
-                            Console.WriteLine($"Export {modExport.ObjectName.Value.Value} is raw and thus cannot be correctly automatically merged.");
-                        }
-                    }
-                    else
-                    {
-                        if (modExport is DataTableExport dtModExport && orgExport is DataTableExport dtOrgExport)
-                        {
-                            HandlePropertyData(originalAsset, dtOrgExport.Table.Data, modifiedAsset, dtModExport.Table.Data);
-                        }
-                        else if (modExport is NormalExport nModExport && orgExport is NormalExport nOrgExport)
-                        {
-                            HandlePropertyData(originalAsset, nOrgExport.Data, modifiedAsset, nModExport.Data);
-                        }
-                        else if (modExport is RawExport)
-                        {
-                            Console.WriteLine($"Export {modExport.ObjectName.Value.Value} is raw and thus cannot be correctly automatically merged.");
-                        }
                     }
                 });
+                modifiedAsset.Exports.ForEach(modExport =>
+                {
+                    var orgExport = originalAsset[modExport.ObjectName.Value.Value];
+                    if (orgExport == null)
+                    {
+                        Console.WriteLine($"Export {modExport.ObjectName.Value.Value} not found in original asset, aborting merge.");
+                        return;
+                    }
+                    if (modExport is DataTableExport dtModExport && orgExport is DataTableExport dtOrgExport)
+                    {
+                        HandlePropertyData(originalAsset, dtOrgExport.Table.Data, modifiedAsset, dtModExport.Table.Data);
+                    }
+                    else if (modExport is NormalExport nModExport && orgExport is NormalExport nOrgExport)
+                    {
+                        HandlePropertyData(originalAsset, nOrgExport.Data, modifiedAsset, nModExport.Data);
+                    }
+                    else if (modExport is RawExport)
+                    {
+                        Console.WriteLine($"Export {modExport.ObjectName.Value.Value} is raw and thus cannot be correctly automatically merged.");
+                    }
+                });
+
                 originalAsset.Write(originalAssetPath + ".uasset");
                 finalAssetHash = GetAssetHash(originalAssetPath + ".uasset");
                 File.WriteAllLines(originalAssetPath + "_scriptfinalhash.txt", [finalAssetHash]);
