@@ -416,7 +416,7 @@ public class UAssetMerger
                 {
                     Directory.CreateDirectory(directoryPath);
                 }
-                if (File.Exists(targetFile) && (replaceList.Contains(relativePath) || relativePath.Contains(".toReplace")))
+                if (File.Exists(targetFile) && (replaceList.Contains(relativePath) || relativePath.Contains(".toReplace") || replaceList.Contains("replaceEverything")))
                 {
                     File.Copy(sourceFile, targetFile, overwrite: true);
                 }
