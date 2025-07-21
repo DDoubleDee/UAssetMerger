@@ -527,19 +527,27 @@ public class UAssetMerger
                 {
                     ImportHelper(originalAsset, modifiedAsset, i);
                 });
-                modifiedAsset.Exports.ForEach(modExport =>
+                Dictionary<string, Export> exportStrings = [];
+                originalAsset.Exports.ForEach(orgExport =>
                 {
-                    var orgExport = originalAsset[modExport.ObjectName.Value.Value];
-                    if (orgExport == null)
-                    {
-                        originalAsset.Exports.Add((Export)modExport.Clone());
-                        orgExport = originalAsset[modExport.ObjectName.Value.Value];
-                        Console.WriteLine($"Export {modExport.ObjectName.Value.Value} added.");
-                    }
+                    exportStrings[orgExport.ObjectName.Value.Value + orgExport.ObjectName.Number.ToString()] = orgExport;
                 });
                 modifiedAsset.Exports.ForEach(modExport =>
                 {
-                    var orgExport = originalAsset[modExport.ObjectName.Value.Value];
+                    if (!exportStrings.ContainsKey(modExport.ObjectName.Value.Value + modExport.ObjectName.Number.ToString()))
+                    {
+                        Export newExport = (Export)modExport.Clone();
+                        originalAsset.Exports.Add(newExport);
+                        exportStrings[modExport.ObjectName.Value.Value + modExport.ObjectName.Number.ToString()] = newExport;
+                        Console.WriteLine($"Export {modExport.ObjectName.Value.Value} added.");
+                    }
+                    else
+                        Console.WriteLine($"Export {modExport.ObjectName.Value.Value} already exists in original asset, check.");
+                });
+                modifiedAsset.Exports.ForEach(modExport =>
+                {
+                    Console.WriteLine($"Export {modExport.ObjectName.Value.Value} looked at, type: {modExport.GetType()}.");
+                    var orgExport = exportStrings[modExport.ObjectName.Value.Value + modExport.ObjectName.Number.ToString()];
                     if (orgExport == null)
                     {
                         Console.WriteLine($"Export {modExport.ObjectName.Value.Value} not found in original asset, aborting merge.");
@@ -555,7 +563,7 @@ public class UAssetMerger
                     }
                     else if (modExport is RawExport)
                     {
-                        Console.WriteLine($"Export {modExport.ObjectName.Value.Value} is raw and thus cannot be correctly automatically merged.");
+                        Console.WriteLine($"Export {modExport.ObjectName.Value.Value} {originalAsset.Imports[GetImportIndex(originalAsset, modifiedAsset.Imports[-modExport.TemplateIndex.Index - 1])].ObjectName.Value.Value} is raw and thus cannot be correctly automatically merged.");
                     }
                 });
 
