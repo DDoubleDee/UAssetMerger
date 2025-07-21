@@ -398,6 +398,11 @@ public class UAssetMerger
             string[] replacedFiles = [];
             foreach (string sourceFile in Directory.GetFiles(modRoot, "*", SearchOption.AllDirectories))
             {
+                if (sourceFile.Contains("scripthash.txt") || sourceFile.Contains("scriptfinalhash.txt"))
+                {
+                    Console.WriteLine($"Skipping file {sourceFile} as it is a script hash file.");
+                    continue;
+                }
                 string relativePath = Path.GetRelativePath(modRoot, sourceFile);
 
                 if (relativePath.StartsWith("Content") || relativePath.StartsWith("Binaries"))
