@@ -1,5 +1,4 @@
-﻿
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using UAssetAPI;
 using UAssetAPI.ExportTypes;
 using UAssetAPI.PropertyTypes.Objects;
@@ -326,6 +325,24 @@ public class UAssetMerger
 
     static void Main()
     {
+        try
+        {
+            Run();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+        }
+        finally
+        {
+            Console.WriteLine("END.");
+            Console.ReadKey();
+        }
+    }
+
+    static void Run()
+    {
         Console.WriteLine("START.");
 
         string scriptPath = AppContext.BaseDirectory;
@@ -539,6 +556,7 @@ public class UAssetMerger
                 File.WriteAllLines(originalAssetPath + "_scriptfinalhash.txt", [finalAssetHash]);
                 modifiedBackupHash = GetAssetHash(modifiedAssetPath + ".uasset");
                 File.WriteAllLines(modifiedAssetPath + "_scripthash.txt", [modifiedBackupHash]);
+                return;
             }
         }
     }
