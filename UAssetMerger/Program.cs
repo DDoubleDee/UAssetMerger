@@ -1,4 +1,5 @@
 ﻿using System.Security.Cryptography;
+using System.Text;
 using UAssetAPI;
 using UAssetAPI.ExportTypes;
 using UAssetAPI.PropertyTypes.Objects;
@@ -142,13 +143,17 @@ public class UAssetMerger
                                 {
                                     if (intValue < 0)
                                     {
-                                        keyHashes.Add(GetImportString(intValue, orgAsset), orgItem.Key);
-                                        keyHashes.Add(intValue.ToString(), orgItem.Key);
+                                        if (replaceObj)
+                                            keyHashes.Add(intValue.ToString(), orgItem.Key);
+                                        else
+                                            keyHashes.Add(GetImportString(intValue, orgAsset), orgItem.Key);
                                     }
                                     else if (intValue > 0)
                                     {
-                                        keyHashes.Add(GetExportString(intValue, orgAsset), orgItem.Key);
-                                        keyHashes.Add(intValue.ToString(), orgItem.Key);
+                                        if (replaceObj)
+                                            keyHashes.Add(intValue.ToString(), orgItem.Key);
+                                        else
+                                            keyHashes.Add(GetExportString(intValue, orgAsset), orgItem.Key);
                                     }
                                 }
                             }
@@ -315,9 +320,8 @@ public class UAssetMerger
             int newImport = 0;
             if (modifiedImport.OuterIndex.ToString() != "0")
                 newImport = ImportHelper(originalAsset, modifiedAsset, modifiedImport.OuterIndex.ToImport(modifiedAsset));
-            Console.WriteLine($"Import {modifiedImport.ObjectName.Value.Value} {modifiedImport.OuterIndex} {newImport} {-originalAsset.Imports.Count-1} added.");
             modifiedImport.OuterIndex = FPackageIndex.FromRawIndex(newImport);
-            originalAsset.Imports.Add(modifiedImport);
+            originalAsset.Imports.Add(new Import(new FName(originalAsset, modifiedImport.ClassPackage.Value.Value), new FName(originalAsset, modifiedImport.ClassName.Value.Value), FPackageIndex.FromRawIndex(newImport), new FName(originalAsset, modifiedImport.ObjectName.Value.Value), false));
             return -originalAsset.Imports.Count;
         }
         return -existing - 1;
@@ -403,19 +407,22 @@ public class UAssetMerger
             return;
         }
 
+        string[] finalHashStrings = [];
+
         foreach (string modRoot in modOrder)
         {
             Console.WriteLine($"Processing mod: {modRoot}");
             string modReplaceListPath = Path.Combine(modRoot, "scriptReplaceList.txt");
+            string[] modReplaceList = [];
             if (File.Exists(modReplaceListPath))
             {
-                replaceList = [.. replaceList, .. File.ReadAllLines(modReplaceListPath)];
+                modReplaceList = [.. replaceList, .. File.ReadAllLines(modReplaceListPath)];
                 Console.WriteLine($"Loaded mod {modRoot} replace list.");
             }
             string[] replacedFiles = [];
             foreach (string sourceFile in Directory.GetFiles(modRoot, "*", SearchOption.AllDirectories))
             {
-                if (sourceFile.Contains("scripthash.txt") || sourceFile.Contains("scriptfinalhash.txt"))
+                if (sourceFile.Contains("scripthash") || sourceFile.Contains("scriptfinalhash"))
                 {
                     Console.WriteLine($"Skipping file {sourceFile} as it is a script hash file.");
                     continue;
@@ -439,7 +446,7 @@ public class UAssetMerger
                 {
                     Directory.CreateDirectory(directoryPath);
                 }
-                if (File.Exists(targetFile) && (replaceList.Contains(relativePath) || relativePath.Contains(".toReplace") || replaceList.Contains("replaceEverything")))
+                if (File.Exists(targetFile) && (modReplaceList.Contains(relativePath) || relativePath.Contains(".toReplace") || modReplaceList.Contains("replaceEverything")))
                 {
                     replacedFiles = [.. replacedFiles, sourceFile];
                     File.Copy(sourceFile, targetFile, overwrite: true);
@@ -478,9 +485,9 @@ public class UAssetMerger
                 string modifiedBackupHash = "";
                 string finalAssetHash = "";
 
-                if (File.Exists(originalAssetPath + "_scriptfinalhash.txt"))
+                if (File.Exists(originalAssetPath + $"_scriptfinalhash{Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(modRoot)))}.txt"))
                 {
-                    finalAssetHash = File.ReadAllLines(originalAssetPath + "_scriptfinalhash.txt")[0];
+                    finalAssetHash = File.ReadAllLines(originalAssetPath + $"_scriptfinalhash{Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(modRoot)))}.txt")[0];
                 }
                 if (!File.Exists(modifiedAssetPath + "_scripthash.txt"))
                 {
@@ -499,7 +506,7 @@ public class UAssetMerger
                 else
                 {
                     originalBackupHash = GetAssetHash(originalAssetPath + "_scriptbak.uasset");
-                    if (originalBackupHash != originalAssetHash && originalAssetHash != finalAssetHash)
+                    if (originalBackupHash != originalAssetHash && !finalHashStrings.Contains(originalAssetHash))
                     {
                         originalAsset.Write(originalAssetPath + "_scriptbak.uasset");
                         originalBackupHash = GetAssetHash(originalAssetPath + "_scriptbak.uasset");
@@ -512,6 +519,7 @@ public class UAssetMerger
                 }
                 if (finalAssetHash == originalAssetHash && modifiedAssetHash == modifiedBackupHash)
                 {
+                    finalHashStrings = [.. finalHashStrings, finalAssetHash];
                     Console.WriteLine("No changes detected, skipping.");
                     continue;
                 }
@@ -553,10 +561,10 @@ public class UAssetMerger
 
                 originalAsset.Write(originalAssetPath + ".uasset");
                 finalAssetHash = GetAssetHash(originalAssetPath + ".uasset");
-                File.WriteAllLines(originalAssetPath + "_scriptfinalhash.txt", [finalAssetHash]);
+                finalHashStrings = [.. finalHashStrings, finalAssetHash];
+                File.WriteAllLines(originalAssetPath + $"_scriptfinalhash{Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(modRoot)))}.txt", [finalAssetHash]);
                 modifiedBackupHash = GetAssetHash(modifiedAssetPath + ".uasset");
                 File.WriteAllLines(modifiedAssetPath + "_scripthash.txt", [modifiedBackupHash]);
-                return;
             }
         }
     }
