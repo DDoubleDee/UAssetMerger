@@ -373,7 +373,7 @@ public class UAssetMerger
         }
 
         DirectoryInfo? current = new(scriptPath);
-        string? targetRoot = null;
+        string? originalRoot = null;
         string sourceRoot = Path.Combine(scriptPath, "Mods");
 
         string modOrderPath = Path.Combine(scriptPath, "scriptModOrder.txt");
@@ -395,17 +395,18 @@ public class UAssetMerger
         {
             if (current.Name.Equals(gameDirectoryName))//Project Silverfish
             {
-                targetRoot = current.FullName;
+                originalRoot = current.FullName;
                 break;
             }
             current = current.Parent;
         }
 
-        if (targetRoot == null)
+        if (originalRoot == null)
         {
             Console.WriteLine($"{gameDirectoryName} directory not found.");
             return;
         }
+        string targetRoot = Path.Combine(originalRoot, $"{workingDirectoryName}/Binaries/Win64/Mods/UAssetMergedFiles");
 
         string[] finalHashStrings = [];
 
@@ -429,34 +430,47 @@ public class UAssetMerger
                 }
                 string relativePath = Path.GetRelativePath(modRoot, sourceFile);
 
-                if (relativePath.StartsWith("Content") || relativePath.StartsWith("Binaries"))
+                Console.WriteLine($"{relativePath} {originalRoot} {targetRoot}");
+                if (relativePath.StartsWith(workingDirectoryName))
                 {
-                    relativePath = Path.Combine(workingDirectoryName, relativePath);
+                    relativePath = relativePath.Replace($"{workingDirectoryName}{Path.PathSeparator}", "");
                 }
-                else if (!relativePath.StartsWith("Content") && !relativePath.StartsWith("Binaries") && !relativePath.StartsWith(workingDirectoryName))
+                if ((!relativePath.StartsWith("Content") && !relativePath.StartsWith(workingDirectoryName)))
                 {
                     Console.WriteLine($"Skipping file {relativePath} as it does not have the correct file path.");
                     continue;
                 }
-
-                string targetFile = Path.Combine(targetRoot, relativePath.Replace(".toReplace", ""));
-
-                string? directoryPath = Path.GetDirectoryName(targetFile);
-                if (directoryPath != null)
+                if (!relativePath.StartsWith("Binaries"))
                 {
-                    Directory.CreateDirectory(directoryPath);
+                    string originalFile = Path.Combine(originalRoot, relativePath.Replace(".toReplace", ""));
+                    string targetFile = Path.Combine(targetRoot, relativePath.Replace(".toReplace", ""));
+                    string? directoryPath = Path.GetDirectoryName(targetFile);
+                    Console.WriteLine($"{directoryPath} {targetFile} {originalFile}");
+                    if (directoryPath != null)
+                    {
+                        Directory.CreateDirectory(directoryPath);
+                    }
+                    if (File.Exists(originalFile) && !replacedFiles.Contains(sourceFile))
+                    {
+                        File.Copy(originalFile, targetFile, true);
+                    }
+                    if (File.Exists(targetFile) && (modReplaceList.Contains(relativePath) || relativePath.Contains(".toReplace") || modReplaceList.Contains("replaceEverything")))
+                    {
+                        replacedFiles = [.. replacedFiles, sourceFile];
+                        File.Copy(sourceFile, targetFile, overwrite: true);
+                    }
+                    else if (!File.Exists(targetFile))
+                    {
+                        replacedFiles = [.. replacedFiles, sourceFile];
+                        File.Copy(sourceFile, targetFile);
+                        if (!replaceList.Contains(relativePath))
+                            File.AppendAllLines(replaceListPath, [relativePath]);
+                    }
                 }
-                if (File.Exists(targetFile) && (modReplaceList.Contains(relativePath) || relativePath.Contains(".toReplace") || modReplaceList.Contains("replaceEverything")))
+                else
                 {
-                    replacedFiles = [.. replacedFiles, sourceFile];
-                    File.Copy(sourceFile, targetFile, overwrite: true);
-                }
-                else if (!File.Exists(targetFile))
-                {
-                    replacedFiles = [.. replacedFiles, sourceFile];
-                    File.Copy(sourceFile, targetFile);
-                    if (!replaceList.Contains(relativePath))
-                        File.AppendAllLines(replaceListPath, [relativePath]);
+                    string targetFile = Path.Combine(Path.Combine(originalRoot, workingDirectoryName), relativePath.Replace(".toReplace", ""));
+                    File.Copy(sourceFile, targetFile, true);
                 }
             }
 
@@ -464,17 +478,17 @@ public class UAssetMerger
             {
                 if (replacedFiles.Contains(sourceFile))
                 {
-                    Console.WriteLine($"Skipping {sourceFile} as it was already replaced.");
+                    Console.WriteLine($"Skipping {sourceFile} as it was already fully replaced.");
                     continue;
                 }
                 string relativePath = Path.GetRelativePath(modRoot, sourceFile);
 
-                string originalFile = Path.Combine(targetRoot, relativePath).Replace(".uasset", "");
-
+                string targetFile = Path.Combine(targetRoot, relativePath.Replace(".uasset", ""));
+                
                 string modifiedFile = sourceFile.Replace(".uasset", "");
 
-                Console.WriteLine($"Copying: {modifiedFile} to {originalFile}");
-                string originalAssetPath = originalFile; 
+                Console.WriteLine($"Copying: {modifiedFile} to {targetFile}");
+                string originalAssetPath = targetFile; 
                 string modifiedAssetPath = modifiedFile;
 
                 UAsset originalAsset = new(originalAssetPath + ".uasset", EngineVersion.VER_UE5_4, usmap);
