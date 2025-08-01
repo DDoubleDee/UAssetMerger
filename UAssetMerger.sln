@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36301.6 d17.14
+VisualStudioVersion = 17.14.36301.6
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UAssetMerger", "UAssetMerger\UAssetMerger.csproj", "{C160FB66-7F53-450E-ACED-23FD74B4B1F5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectSilverfishUAssetLoader", "ProjectSilverfishUAssetLoader\ProjectSilverfishUAssetLoader.csproj", "{3BE6F961-CF09-43FD-9FA7-BB006FFC5322}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UAssetMergerLibrary", "UAssetMergerLibrary\UAssetMergerLibrary.csproj", "{BD1F7648-BF60-4338-920E-21A754E8FCE6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +13,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{C160FB66-7F53-450E-ACED-23FD74B4B1F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C160FB66-7F53-450E-ACED-23FD74B4B1F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C160FB66-7F53-450E-ACED-23FD74B4B1F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C160FB66-7F53-450E-ACED-23FD74B4B1F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3BE6F961-CF09-43FD-9FA7-BB006FFC5322}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3BE6F961-CF09-43FD-9FA7-BB006FFC5322}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3BE6F961-CF09-43FD-9FA7-BB006FFC5322}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3BE6F961-CF09-43FD-9FA7-BB006FFC5322}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BD1F7648-BF60-4338-920E-21A754E8FCE6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BD1F7648-BF60-4338-920E-21A754E8FCE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BD1F7648-BF60-4338-920E-21A754E8FCE6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BD1F7648-BF60-4338-920E-21A754E8FCE6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

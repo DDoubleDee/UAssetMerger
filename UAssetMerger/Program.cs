@@ -9,7 +9,7 @@ using UAssetAPI.Unversioned;
 
 namespace UAssetMerger;
 
-public class UAssetMerger
+public class UAssetMergerFunctions
 {
 
     static PropertyData GetTrueProp(UAsset orgAsset, UAsset modAsset, PropertyData prop)
@@ -327,11 +327,16 @@ public class UAssetMerger
         return -existing - 1;
     }
 
+    public static string Test()
+    {
+        return "TEST";
+    }
+
     static void Main()
     {
         try
         {
-            Run();
+            //Run();
         }
         catch (Exception ex)
         {
